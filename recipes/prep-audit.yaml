@@ -1,0 +1,141 @@
+name: prep-audit
+description: >
+  Automated audit preparation. Scans tracked repos for activity via gh CLI,
+  matches against weekly commitments, generates audit.md with status and
+  evidence, and appends a scorecard row to CHANGELOG.md.
+version: "0.1.0"
+tags: ["audit", "weekly", "automation"]
+
+# Usage:
+#   "Prep the audit"
+#   amplifier tool invoke recipes operation=execute recipe_path=@team-pulse:recipes/prep-audit.yaml
+#   amplifier tool invoke recipes operation=execute recipe_path=@team-pulse:recipes/prep-audit.yaml context='{"week": "2026-W12"}'
+
+context:
+  week: ""  # Optional: defaults to current ISO week
+
+steps:
+  - id: prepare-audit
+    timeout: 900
+    output: audit_result
+    prompt: |
+      You are preparing the weekly audit for Team Pulse. This is an automated
+      process — no user interaction needed. Read data, scan repos, match
+      activity against commitments, and generate the audit document.
+
+      ## Step 1: Determine the Week
+
+      {% if week != "" %}
+      Use week: {{week}}
+      {% else %}
+      Run `date +%Y-W%V` to get the current ISO week identifier.
+      {% endif %}
+
+      Calculate the Monday and Sunday dates for this week. You'll need these
+      for the `gh` CLI date filters and the audit header.
+
+      ## Step 2: Read Inputs
+
+      1. **Read `team.yaml`** to get the full team roster (names, github handles, repos)
+      2. **Read all commitment files** from `weeks/<WEEK_ID>/commitments/`
+         - List all `.md` files in that directory
+         - Parse each one to extract commitments with their outcome, repo, and priority
+         - Note which members have commitment files and which don't
+
+      ## Step 3: Scan Repos for Activity
+
+      For each team member, scan each of their repos listed in `team.yaml`
+      using the `gh` CLI. Run these commands for each member/repo combination:
+
+      **Merged PRs this week (by this member):**
+      ```
+      gh pr list --repo <owner/repo> --state merged --search "merged:>=<MONDAY>" --author <github_handle> --json number,title,mergedAt,headRefName --limit 50
+      ```
+
+      **Open PRs by this member:**
+      ```
+      gh pr list --repo <owner/repo> --state open --author <github_handle> --json number,title,createdAt,headRefName --limit 50
+      ```
+
+      **Recent commits on default branch by this member:**
+      ```
+      gh api "repos/<owner/repo>/commits?since=<MONDAY>T00:00:00Z&until=<SUNDAY>T23:59:59Z&author=<github_handle>" --jq '.[] | .sha[:7] + " " + .commit.message'
+      ```
+
+      Collect ALL output. If a command fails (e.g., repo not found, no permissions),
+      note the error and continue — don't stop the entire audit.
+
+      ## Step 4: Match Activity Against Commitments
+
+      For each member's commitments, match against the scanned repo activity:
+
+      - **Shipped** — PR merged whose title, branch name, or commit messages clearly
+        relate to the commitment's description or outcome
+      - **Partial** — Activity exists but doesn't look complete: open PR with commits,
+        WIP branch, or partial work visible
+      - **No activity** — Nothing found in the tagged repo matching this commitment
+      - **Unmatched** — Commitment has no repo tag; cannot assess automatically
+
+      Be generous with matching. If a PR title is clearly related to a commitment
+      description, count it as a match. Use PR titles, branch names, and commit
+      messages for matching — not just exact string comparison.
+
+      For members who didn't log commitments: note "no commitments logged" but
+      still report any repo activity under "Unmatched Activity".
+
+      ## Step 5: Write audit.md
+
+      Write the audit file to `weeks/<WEEK_ID>/audit.md` using this exact format:
+
+      ```
+      # Audit -- Week of <MONDAY_DATE>
+
+      ## <Member Name>
+
+      ### Must-Ship
+
+      | Commitment | Status | Evidence |
+      |------------|--------|----------|
+      | <description> | Shipped | PR #<N> "<title>" merged <date> |
+      | <description> | No activity | No matching commits/PRs in <repo> |
+
+      ### Stretch
+
+      | Commitment | Status | Evidence |
+      |------------|--------|----------|
+      | <description> | Partial | PR #<N> "<title>" open, <X> commits |
+
+      ### Unmatched Activity
+
+      | Repo | Activity | Notes |
+      |------|----------|-------|
+      | <repo> | PR #<N> "<title>" merged | Not tied to a commitment |
+      ```
+
+      Repeat the member section for every team member. Include members who
+      didn't log commitments (show only Unmatched Activity for them with a
+      note: "<Name>: no commitments logged").
+
+      If a member has no must-ship items, omit the Must-Ship table.
+      If a member has no stretch items, omit the Stretch table.
+      If a member has no unmatched activity, omit the Unmatched Activity table.
+
+      ## Step 6: Update CHANGELOG.md
+
+      Calculate the scorecard from the audit:
+      - **Must-Ship:** Total must-ship commitments across all members
+      - **Shipped:** Must-ship items with status "Shipped"
+      - **Rate:** Shipped / Must-Ship as percentage (e.g., 75%)
+      - **Carried Forward:** Must-ship items NOT shipped (No activity + Partial)
+
+      Append a new row to the table in `CHANGELOG.md`:
+      ```
+      | <WEEK_SHORT> | <must_ship> | <shipped> | <rate>% | <carried> |
+      ```
+      Where <WEEK_SHORT> is just the week part, e.g., "W12".
+
+      ## Step 7: Commit and Push
+
+      - `git add weeks/<WEEK_ID>/audit.md CHANGELOG.md`
+      - `git commit -m "audit: generate week <WEEK_ID>"`
+      - `git push`
