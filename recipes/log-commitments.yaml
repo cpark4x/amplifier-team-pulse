@@ -1,0 +1,115 @@
+name: log-commitments
+description: >
+  Weekly commitment entry for team members. Surfaces carry-over from last week,
+  captures commitments with outcomes and priorities, writes the commitment file,
+  and commits to the shared repo.
+version: "0.1.0"
+tags: ["commitments", "weekly", "team"]
+
+# Usage:
+#   "Log my commitments"
+#   amplifier tool invoke recipes operation=execute recipe_path=@team-pulse:recipes/log-commitments.yaml
+#   amplifier tool invoke recipes operation=execute recipe_path=@team-pulse:recipes/log-commitments.yaml context='{"member_name": "Ken"}'
+
+context:
+  member_name: ""  # Optional: auto-detected from git config if empty
+
+steps:
+  - id: log-commitments
+    timeout: 600
+    output: commitment_result
+    prompt: |
+      You are helping a team member log their weekly commitments for Team Pulse.
+
+      ## Setup
+
+      1. **Determine the current week:**
+         - Run `date +%Y-W%V` to get the ISO week identifier (e.g., 2026-W12)
+         - Run `date +%Y-%m-%d` to get today's date
+         - Determine the Monday of this week for the file header
+
+      2. **Identify the team member:**
+         {% if member_name != "" %}
+         - The member is: {{member_name}}
+         {% else %}
+         - Run `git config user.name` and `git config user.email` to detect the user
+         {% endif %}
+         - Read `team.yaml` and match the user to a team member entry by name or github handle
+         - If no match found, show the team list and ask the user who they are
+
+      3. **Create the week folder** if it doesn't exist:
+         - `mkdir -p weeks/<WEEK_ID>/commitments`
+         - `mkdir -p weeks/<WEEK_ID>/showcase`
+
+      ## Carry-Over Check
+
+      4. **Find the previous week's commitment file** for this member:
+         - List folders in `weeks/`, find the most recent one before the current week
+         - Read `weeks/<PREV_WEEK>/commitments/<lowercase_name>.md`
+         - Any items still marked `- [ ]` (unchecked) are potential carry-over
+         - If no previous week folder exists, this is their first week
+
+      5. **Present carry-over to the user:**
+         - If there are unchecked items from last week, show them
+         - Ask which ones to carry forward this week
+         - For carried items, record the originating week in the `carried-from` field
+         - If this is their first week, say so
+
+      ## Gather Commitments
+
+      6. **For each new commitment, ask the user:**
+         - What is the commitment? (brief description)
+         - What does "done" look like? (specific, measurable outcome)
+         - Which repo is it tied to? (show their repos from team.yaml, or "none")
+         - Is it must-ship or stretch?
+         - Push for specific outcomes. If an outcome is vague (e.g., "work on feature X"),
+           ask: "What would you show someone on Friday to prove this shipped?"
+
+      7. **Keep prompting** until the user says they're done adding commitments
+
+      ## Write the File
+
+      8. **Write the commitment file** to:
+         `weeks/<WEEK_ID>/commitments/<lowercase_first_name>.md`
+
+         Use this exact format:
+
+         ```
+         # <Name> -- Week of <MONDAY_DATE>
+         Logged: <TODAY_DATE>
+
+         ## Carried Forward
+
+         <list carried items with "(from W<XX>)" note>
+         <or "(none -- first week)" if none>
+
+         ## Commitments
+
+         - [ ] <commitment description>
+           - outcome: <what done looks like>
+           - repo: <owner/repo>
+           - priority: must-ship
+           - carried-from: <WEEK_ID>
+         - [ ] <another commitment>
+           - outcome: <outcome>
+           - repo: <owner/repo>
+           - priority: stretch
+         ```
+
+         Rules:
+         - Only include `carried-from` on items carried from a previous week
+         - `repo` and `outcome` are strongly encouraged but optional (bare bullets still work)
+         - Priority must be exactly `must-ship` or `stretch`
+
+      ## Commit and Push
+
+      9. **Commit the file:**
+         - `git add weeks/<WEEK_ID>/commitments/<name>.md`
+         - `git commit -m "commitments(<name>): log week <WEEK_ID>"`
+         - `git push`
+
+      ## Tone
+
+      Be conversational and encouraging. Help the team member think about what
+      "done" looks like for each commitment. Celebrate carry-over honesty —
+      acknowledging unfinished work is a feature, not a failure.
