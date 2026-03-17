@@ -1,0 +1,212 @@
+name: draft-showcase
+description: >
+  Generates team and leadership showcases from the finalized audit, then
+  posts to Teams via webhook on manager approval. Staged recipe: manager
+  reviews drafts before posting.
+version: "0.1.0"
+tags: ["showcase", "weekly", "teams", "staged"]
+
+# Usage:
+#   "Draft the showcase"
+#   amplifier tool invoke recipes operation=execute recipe_path=@team-pulse:recipes/draft-showcase.yaml
+#   amplifier tool invoke recipes operation=execute recipe_path=@team-pulse:recipes/draft-showcase.yaml context='{"week": "2026-W12"}'
+
+context:
+  week: ""  # Optional: defaults to current ISO week
+
+stages:
+  - name: "drafting"
+    steps:
+      - id: generate-showcases
+        timeout: 600
+        output: showcase_summary
+        prompt: |
+          Generate two showcase documents from the weekly audit: one for the
+          team channel (celebratory) and one for leadership (outcome-focused).
+
+          ## Step 1: Determine the Week
+
+          {% if week != "" %}
+          Use week: {{week}}
+          {% else %}
+          Run `date +%Y-W%V` to get the current ISO week identifier.
+          {% endif %}
+
+          ## Step 2: Read Inputs
+
+          1. Read `weeks/<WEEK_ID>/audit.md` — this is the source of truth
+          2. Read `team.yaml` — for showcase config (tone, recipient)
+          3. Read `CHANGELOG.md` — for trend data (last 3+ weeks if available)
+
+          ## Step 3: Generate Team Showcase
+
+          Write `weeks/<WEEK_ID>/showcase/team.md` with:
+          - **Tone:** Celebratory, specific, personal
+          - Name individuals and what they shipped
+          - Acknowledge stretch goals that were attempted
+          - Call out anything demo-worthy
+          - Include a "Carried Forward" section (what's rolling to next week)
+          - Keep it scannable — bullet points over paragraphs
+
+          Example structure:
+          ```
+          # Team Update -- Week of <DATE>
+
+          ## Shipped This Week
+
+          - **<Name>** shipped <thing> — <why it matters>
+          - **<Name>** landed <thing> — <impact>
+
+          ## In Progress
+
+          - **<Name>** has <thing> nearly ready (<evidence>)
+
+          ## Stretch Goals Attempted
+
+          - <Name> started <stretch item> — <status>
+
+          ## Carried Forward
+
+          - <item> (rolling to next week)
+          ```
+
+          ## Step 4: Generate Leadership Showcase
+
+          Write `weeks/<WEEK_ID>/showcase/leadership.md` with:
+          - **Tone:** Outcome-focused, concise, skimmable in 60 seconds
+          - **Recipient:** The leadership contact from team.yaml (e.g., Sam)
+          - Connect work to team mission — no implementation details
+          - Include a must-ship scorecard:
+            ```
+            ## Must-Ship Scorecard
+            This week: <shipped>/<total> shipped (<rate>%)
+            ```
+          - If 3+ weeks of CHANGELOG data exist, include a trend line:
+            ```
+            Trend: W10 68% > W11 82% > W12 73%
+            ```
+          - Show "Next Week Focus" instead of "Carried Forward" (forward-looking)
+
+          Example structure:
+          ```
+          # Weekly Update for <Recipient> -- Week of <DATE>
+
+          ## Must-Ship Scorecard
+
+          This week: 6/8 shipped (75%)
+          Trend: W10 68% > W11 82% > W12 75%
+
+          ## Key Outcomes
+
+          - <Outcome that matters to leadership>
+          - <Another outcome>
+
+          ## Next Week Focus
+
+          - <What the team is targeting next>
+          ```
+
+          ## Step 5: Create folders if needed
+
+          `mkdir -p weeks/<WEEK_ID>/showcase`
+
+          ## Output
+
+          After writing both files, summarize what was generated:
+          - Path to team showcase
+          - Path to leadership showcase
+          - Key stats (ship rate, highlights)
+
+    approval:
+      required: true
+      prompt: |
+        ## Showcase Drafts Ready for Review
+
+        {{showcase_summary}}
+
+        **Review the generated files** in `weeks/` and edit directly if needed.
+
+        When you're satisfied, **approve to post to Teams**.
+        Reply "approve" to post, or edit the files first and then approve.
+
+  - name: "posting"
+    steps:
+      - id: post-to-teams
+        timeout: 120
+        output: posting_result
+        prompt: |
+          Post the finalized showcases to Teams via webhooks.
+
+          ## Step 1: Read Config
+
+          Read `team.yaml` to get the webhook URLs:
+          - `showcase.team.channel` — the team webhook URL (references env var)
+          - `showcase.leadership.channel` — the leadership webhook URL (references env var)
+
+          Resolve the environment variable names (e.g., `$TEAM_PULSE_TEAM_WEBHOOK`)
+          by reading the actual env var value.
+
+          ## Step 2: Determine the Week
+
+          {% if week != "" %}
+          Use week: {{week}}
+          {% else %}
+          Run `date +%Y-W%V` to get the current ISO week identifier.
+          {% endif %}
+
+          ## Step 3: Post Team Showcase
+
+          Read `weeks/<WEEK_ID>/showcase/team.md`.
+
+          Convert the content to a Teams Adaptive Card JSON payload:
+          ```json
+          {
+            "type": "message",
+            "attachments": [
+              {
+                "contentType": "application/vnd.microsoft.card.adaptive",
+                "content": {
+                  "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+                  "type": "AdaptiveCard",
+                  "version": "1.4",
+                  "body": [
+                    {
+                      "type": "TextBlock",
+                      "text": "<TITLE>",
+                      "weight": "Bolder",
+                      "size": "Large"
+                    },
+                    {
+                      "type": "TextBlock",
+                      "text": "<BODY_CONTENT>",
+                      "wrap": true
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+          ```
+
+          Post via curl:
+          ```
+          curl -X POST -H "Content-Type: application/json" -d @/tmp/team-showcase.json "$TEAM_PULSE_TEAM_WEBHOOK"
+          ```
+
+          ## Step 4: Post Leadership Showcase
+
+          Same process for `weeks/<WEEK_ID>/showcase/leadership.md`,
+          posting to `$TEAM_PULSE_LEADERSHIP_WEBHOOK`.
+
+          ## Step 5: Commit and Push
+
+          - `git add weeks/<WEEK_ID>/showcase/`
+          - `git commit -m "showcase: post week <WEEK_ID>"`
+          - `git push`
+
+          ## Error Handling
+
+          If a webhook URL is not set (env var empty or missing), skip that
+          posting and report it. Don't fail the entire step — post what you can.
+
+          Report what was posted successfully and any errors.
