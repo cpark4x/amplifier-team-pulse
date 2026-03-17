@@ -1,0 +1,34 @@
+team:
+  - name: Chris
+    github: cpark4x
+    role: manager
+    repos:
+      - cpark4x/canvas-specialists
+      - cpark4x/ridecast
+      - cpark4x/canvas-app
+  - name: Gurkaran
+    github: gurkaran
+    repos:
+      - cpark4x/canvas-specialists
+  - name: Manoj
+    github: mpaidiparthy_microsoft
+    repos:
+      - mpaidiparthy_microsoft/canvas-cli
+  - name: Ken
+    github: kenotron-ms
+    repos:
+      - kenotron-ms/lifeos
+
+rhythm:
+  commitment_day: monday
+  audit_prep_day: friday
+  meeting_day: monday
+
+showcase:
+  team:
+    channel: $TEAM_PULSE_TEAM_WEBHOOK
+    tone: celebratory
+  leadership:
+    channel: $TEAM_PULSE_LEADERSHIP_WEBHOOK
+    recipient: Sam
+    tone: outcomes
