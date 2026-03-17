@@ -58,7 +58,9 @@ steps:
 
       ## Gather Commitments
 
-      6. **For each new commitment, ask the user:**
+      6. **For each item, first ask: "Is this something you're planning to ship, or something you already shipped?"**
+
+         **If planning to ship (future commitment):**
          - What is the commitment? (brief description)
          - What does "done" look like? (specific, measurable outcome)
          - Which repo is it tied to? (show their repos from team.yaml, or "none")
@@ -66,7 +68,16 @@ steps:
          - Push for specific outcomes. If an outcome is vague (e.g., "work on feature X"),
            ask: "What would you show someone on Friday to prove this shipped?"
 
-      7. **Keep prompting** until the user says they're done adding commitments
+         **If already shipped:**
+         - What did you ship? (brief description)
+         - What was the outcome? (what was delivered -- PR link, artifact, result)
+         - Which repo? (show their repos from team.yaml, or "none")
+         - Was it must-ship or stretch?
+         - Write it as `- [x]` (already checked) with an `- evidence:` field instead of `- outcome:`
+         - This is common with AI-assisted work -- exploratory sessions often produce
+           real deliverables before commitments are declared. Treat these as wins, not anomalies.
+
+      7. **Keep prompting** until the user says they're done adding items
 
       ## Write the File
 
@@ -86,11 +97,15 @@ steps:
 
          ## Commitments
 
-         - [ ] <commitment description>
+         - [ ] <future commitment description>
            - outcome: <what done looks like>
            - repo: <owner/repo>
            - priority: must-ship
            - carried-from: <WEEK_ID>
+         - [x] <already shipped item>
+           - evidence: <what was delivered -- PR link, artifact, result>
+           - repo: <owner/repo>
+           - priority: must-ship
          - [ ] <another commitment>
            - outcome: <outcome>
            - repo: <owner/repo>
@@ -99,8 +114,10 @@ steps:
 
          Rules:
          - Only include `carried-from` on items carried from a previous week
-         - `repo` and `outcome` are strongly encouraged but optional (bare bullets still work)
+         - `repo` and `outcome`/`evidence` are strongly encouraged but optional (bare bullets still work)
          - Priority must be exactly `must-ship` or `stretch`
+         - Future items use `- [ ]` with `outcome:` (what done looks like)
+         - Already-shipped items use `- [x]` with `evidence:` (what was delivered)
 
       ## Commit and Push
 
