@@ -16,6 +16,7 @@ context:
 
 steps:
   - id: prepare-audit
+    agent: self
     timeout: 900
     output: audit_result
     prompt: |

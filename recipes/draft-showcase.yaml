@@ -18,6 +18,7 @@ stages:
   - name: "drafting"
     steps:
       - id: generate-showcases
+        agent: self
         timeout: 600
         output: showcase_summary
         prompt: |
@@ -132,6 +133,7 @@ stages:
   - name: "posting"
     steps:
       - id: post-to-teams
+        agent: self
         timeout: 120
         output: posting_result
         prompt: |

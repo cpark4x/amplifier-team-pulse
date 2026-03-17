@@ -16,6 +16,7 @@ context:
 
 steps:
   - id: log-commitments
+    agent: self
     timeout: 600
     output: commitment_result
     prompt: |
