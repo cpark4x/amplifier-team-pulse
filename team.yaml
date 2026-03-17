@@ -6,7 +6,7 @@ team:
       - cpark4x/canvas-specialists
       - cpark4x/ridecast
       - cpark4x/canvas-app
-      - cpark4x/amplifier-writing-pr-faq
+
   - name: Gurkaran
     github: gurkaran
     repos:
