@@ -37,7 +37,10 @@ steps:
 
       ## Step 2: Read Inputs
 
-      1. **Read `team.yaml`** to get the full team roster (names, github handles, repos)
+      1. **Read `team.yaml`** to get the full team roster.
+         - Each member has a `github:` field that is a **list of handles** (e.g., personal
+           and Microsoft accounts). Collect all handles per member.
+         - Each member has a `repos:` list of tracked repositories.
       2. **Read all commitment files** from `weeks/<WEEK_ID>/commitments/`
          - List all `.md` files in that directory
          - Parse each one to extract commitments with their outcome, repo, and priority
@@ -46,7 +49,19 @@ steps:
       ## Step 3: Scan Repos for Activity
 
       For each team member, scan each of their repos listed in `team.yaml`
-      using the `gh` CLI. Run these commands for each member/repo combination:
+      using the `gh` CLI.
+
+      **Account switching:** The `gh` CLI may have multiple accounts authenticated
+      (e.g., a personal account and a Microsoft account). Before scanning a repo,
+      determine which `gh` account can access it:
+      - Check which account is currently active: `gh auth status`
+      - If the repo org doesn't match the active account's access, switch:
+        `gh auth switch --user <appropriate_handle>`
+      - If a scan fails with 404, try switching to the member's other handle and retry.
+      - After all scanning is complete, switch back to the original active account.
+
+      For each member/repo combination, try **all of the member's github handles**
+      as the `--author` filter (activity may be under any of their accounts):
 
       **Merged PRs this week (by this member):**
       ```
@@ -62,6 +77,9 @@ steps:
       ```
       gh api "repos/<owner/repo>/commits?since=<MONDAY>T00:00:00Z&until=<SUNDAY>T23:59:59Z&author=<github_handle>" --jq '.[] | .sha[:7] + " " + .commit.message'
       ```
+
+      Run the above for **each handle** the member has. Merge the results (deduplicate
+      by PR number or commit SHA if the same activity appears under multiple handles).
 
       Collect ALL output. If a command fails (e.g., repo not found, no permissions),
       note the error and continue — don't stop the entire audit.
@@ -84,7 +102,34 @@ steps:
       For members who didn't log commitments: note "no commitments logged" but
       still report any repo activity under "Unmatched Activity".
 
-      ## Step 5: Write audit.md
+      ## Step 5: Discover Untracked Repos
+
+      For each team member, check if they had activity in repos NOT listed in
+      their `team.yaml` repos. Use the GitHub Events API on each of their handles:
+
+      ```
+      gh api "users/<github_handle>/events?per_page=100" --jq '[.[] | select(.created_at >= "<MONDAY>T00:00:00Z") | .repo.name] | unique | .[]'
+      ```
+
+      Run this for **each handle** the member has. Combine the results into one
+      list of repos with activity this week.
+
+      Compare against their `repos:` list in `team.yaml`. Any repo that shows
+      activity but is NOT tracked gets flagged. For each flagged repo, count
+      the commits:
+
+      ```
+      gh api "repos/<owner/repo>/commits?since=<MONDAY>T00:00:00Z&until=<SUNDAY>T23:59:59Z&author=<github_handle>" --jq 'length'
+      ```
+
+      Include the results in a "Untracked Repos" section per member in the audit
+      (see format below). This ensures no work falls through the cracks even if
+      someone forgot to mention a repo during `log-commitments`.
+
+      If account switching is needed (see Step 3), apply the same switching logic.
+      If a command fails, skip that handle/repo and continue.
+
+      ## Step 6: Write audit.md
 
       Write the audit file to `weeks/<WEEK_ID>/audit.md` using this exact format:
 
@@ -111,17 +156,24 @@ steps:
       | Repo | Activity | Notes |
       |------|----------|-------|
       | <repo> | PR #<N> "<title>" merged | Not tied to a commitment |
+
+      ### Untracked Repos
+
+      Activity found in repos not listed in team.yaml:
+
+      | Repo | Commits | Notes |
+      |------|---------|-------|
+      | <owner/repo> | <N> commits | Not tracked -- consider adding to team.yaml |
       ```
 
       Repeat the member section for every team member. Include members who
-      didn't log commitments (show only Unmatched Activity for them with a
-      note: "<Name>: no commitments logged").
+      didn't log commitments (show only Unmatched Activity and Untracked Repos
+      for them with a note: "<Name>: no commitments logged").
 
-      If a member has no must-ship items, omit the Must-Ship table.
-      If a member has no stretch items, omit the Stretch table.
-      If a member has no unmatched activity, omit the Unmatched Activity table.
+      Omit any subsection that has no data (Must-Ship, Stretch, Unmatched
+      Activity, Untracked Repos).
 
-      ## Step 6: Update CHANGELOG.md
+      ## Step 7: Update CHANGELOG.md
 
       Calculate the scorecard from the audit:
       - **Must-Ship:** Total must-ship commitments across all members
@@ -135,7 +187,7 @@ steps:
       ```
       Where <WEEK_SHORT> is just the week part, e.g., "W12".
 
-      ## Step 7: Commit and Push
+      ## Step 8: Commit and Push
 
       - `git add weeks/<WEEK_ID>/audit.md CHANGELOG.md`
       - `git commit -m "audit: generate week <WEEK_ID>"`

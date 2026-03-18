@@ -1,24 +1,37 @@
 team:
   - name: Chris
-    github: cpark4x
+    github:
+      - cpark4x
+      - cspark_microsoft
     role: manager
     repos:
       - cpark4x/canvas-specialists
       - cpark4x/ridecast
       - cpark4x/canvas-app
+      - technology-and-research/workspaces2
 
   - name: Gurkaran
-    github: gurkaran
+    github:
+      - singh2
+      - gurksing_microsoft
     repos:
       - cpark4x/canvas-specialists
+
   - name: Manoj
-    github: mpaidiparthy_microsoft
+    github:
+      - manojp99
+      - mpaidiparthy_microsoft
     repos:
-      - mpaidiparthy_microsoft/canvas-cli
+      - microsoft/amplifier-app-cli
+
   - name: Ken
-    github: kenotron-ms
+    github:
+      - kenotron-ms
+      - kchau_microsoft
     repos:
       - kenotron-ms/lifeos
+      - kenotron-ms/agent-daemon
+      - kenotron-ms/nano-foundation
 
 rhythm:
   commitment_day: monday
