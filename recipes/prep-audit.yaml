@@ -104,7 +104,10 @@ steps:
 
       ## Step 5: Discover Untracked Repos
 
-      For each team member, check if they had activity in repos NOT listed in
+      **Only run this step for members who have `auto_discover: true` in `team.yaml`.**
+      Skip members with `auto_discover: false` or where the field is missing (default: false).
+
+      For each eligible team member, check if they had activity in repos NOT listed in
       their `team.yaml` repos. Use the GitHub Events API on each of their handles:
 
       ```

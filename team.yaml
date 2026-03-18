@@ -4,6 +4,7 @@ team:
       - cpark4x
       - cspark_microsoft
     role: manager
+    auto_discover: true
     repos:
       - cpark4x/canvas-specialists
       - cpark4x/ridecast
@@ -14,6 +15,7 @@ team:
     github:
       - singh2
       - gurksing_microsoft
+    auto_discover: false
     repos:
       - cpark4x/canvas-specialists
 
@@ -21,6 +23,7 @@ team:
     github:
       - manojp99
       - mpaidiparthy_microsoft
+    auto_discover: false
     repos:
       - microsoft/amplifier-app-cli
 
@@ -28,6 +31,7 @@ team:
     github:
       - kenotron-ms
       - kchau_microsoft
+    auto_discover: true
     repos:
       - kenotron-ms/lifeos
       - kenotron-ms/agent-daemon
