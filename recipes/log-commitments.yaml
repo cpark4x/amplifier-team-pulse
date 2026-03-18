@@ -63,7 +63,9 @@ steps:
          **If planning to ship (future commitment):**
          - What is the commitment? (brief description)
          - What does "done" look like? (specific, measurable outcome)
-         - Which repo is it tied to? (show their repos from team.yaml, or "none")
+         - Which repo is it tied to? If the member has logged commitments in previous weeks,
+           show repos they've used before as suggestions. They can pick one, type a new
+           `owner/repo`, or say "none". Accept any valid GitHub `owner/repo` string.
          - Is it must-ship or stretch?
          - Push for specific outcomes. If an outcome is vague (e.g., "work on feature X"),
            ask: "What would you show someone on Friday to prove this shipped?"
@@ -71,7 +73,8 @@ steps:
          **If already shipped:**
          - What did you ship? (brief description)
          - What was the outcome? (what was delivered -- PR link, artifact, result)
-         - Which repo? (show their repos from team.yaml, or "none")
+         - Which repo? Same as above -- show previously used repos as suggestions, accept any
+           valid `owner/repo`, or "none".
          - Was it must-ship or stretch?
          - Write it as `- [x]` (already checked) with an `- evidence:` field instead of `- outcome:`
          - This is common with AI-assisted work -- exploratory sessions often produce

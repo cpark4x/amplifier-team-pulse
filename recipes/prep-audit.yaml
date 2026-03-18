@@ -37,16 +37,22 @@ steps:
 
       ## Step 2: Read Inputs
 
-      1. **Read `team.yaml`** to get the full team roster (names, github handles, repos)
+      1. **Read `team.yaml`** to get the team roster (names and github handles)
       2. **Read all commitment files** from `weeks/<WEEK_ID>/commitments/`
          - List all `.md` files in that directory
          - Parse each one to extract commitments with their outcome, repo, and priority
          - Note which members have commitment files and which don't
+         - **Collect the unique set of repos** from all `repo:` fields across all commitment files.
+           These are the repos to scan -- not a hardcoded list. Each member opted in to tracking
+           these repos when they logged their commitments.
 
       ## Step 3: Scan Repos for Activity
 
-      For each team member, scan each of their repos listed in `team.yaml`
-      using the `gh` CLI. Run these commands for each member/repo combination:
+      For each team member, scan the repos that appear in **their commitment file's `repo:` fields**
+      using the `gh` CLI. If a member has no commitment file, skip them for repo scanning
+      (they'll appear in the audit as "no commitments logged").
+
+      Run these commands for each member/repo combination:
 
       **Merged PRs this week (by this member):**
       ```
