@@ -119,10 +119,19 @@ steps:
          - Future items use `- [ ]` with `outcome:` (what done looks like)
          - Already-shipped items use `- [x]` with `evidence:` (what was delivered)
 
+      ## Update team.yaml with New Repos
+
+      9. **Check for new repos:** Compare every `repo:` value in the commitment file
+         against this member's `repos:` list in `team.yaml`.
+         - If a repo is mentioned that's NOT already in their list, append it.
+         - This keeps `team.yaml` as the growing record of all projects a member
+           has ever worked on, so audits and historical lookups work across weeks.
+
       ## Commit and Push
 
-      9. **Commit the file:**
+      10. **Commit the file (and team.yaml if updated):**
          - `git add weeks/<WEEK_ID>/commitments/<name>.md`
+         - If `team.yaml` was modified: `git add team.yaml`
          - `git commit -m "commitments(<name>): log week <WEEK_ID>"`
          - `git push`
 
