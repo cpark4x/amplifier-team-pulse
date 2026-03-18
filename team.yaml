@@ -2,15 +2,23 @@ team:
   - name: Chris
     github: cpark4x
     role: manager
+    repos:
+      - cpark4x/canvas-specialists
+      - cpark4x/ridecast
+      - cpark4x/canvas-app
 
   - name: Gurkaran
     github: gurkaran
-
+    repos:
+      - cpark4x/canvas-specialists
   - name: Manoj
     github: mpaidiparthy_microsoft
-
+    repos:
+      - mpaidiparthy_microsoft/canvas-cli
   - name: Ken
     github: kenotron-ms
+    repos:
+      - kenotron-ms/lifeos
 
 rhythm:
   commitment_day: monday
