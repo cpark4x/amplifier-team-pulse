@@ -1,0 +1,62 @@
+org:
+  name: "Sam's Org"
+
+rhythm:
+  commitment_day: monday
+  audit_prep_day: friday
+  meeting_day: monday
+
+showcase:
+  org-wide:
+    channel: $TEAM_PULSE_ORG_WEBHOOK
+    tone: outcomes
+  workspaces:
+    channel: $TEAM_PULSE_TEAM_WEBHOOK
+    tone: celebratory
+  leadership:
+    channel: $TEAM_PULSE_LEADERSHIP_WEBHOOK
+    recipient: Sam
+    tone: outcomes
+
+members:
+  - name: Sam S
+    role: program-leader
+
+  - name: Chris P
+    role: manager
+    reports_to: Sam S
+
+  - name: Brian K
+    role: manager
+    reports_to: Sam S
+
+  - name: Gurkaran
+    role: ic
+    reports_to: Chris P
+
+  - name: Manoj
+    role: ic
+    reports_to: Chris P
+
+  - name: Ken
+    role: ic
+    reports_to: Chris P
+
+  - name: Salil Das
+    role: ic
+    reports_to: Chris P
+
+  - name: Samuel Lee
+    role: ic
+    reports_to: Chris P
+
+  - name: Alex Lopez
+    role: ic
+    reports_to: Chris P
+
+teams:
+  - name: workspaces
+    manager: Chris P
+    members: [Gurkaran, Manoj, Ken, Salil Das]
+
+grants: []

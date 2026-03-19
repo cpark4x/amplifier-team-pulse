@@ -1,0 +1,8 @@
+github:
+  - kenotron-ms
+  - kchau_microsoft
+auto_discover: true
+repos:
+  - kenotron-ms/lifeos
+  - kenotron-ms/agent-daemon
+  - kenotron-ms/nano-foundation

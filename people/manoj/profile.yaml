@@ -1,0 +1,6 @@
+github:
+  - manojp99
+  - mpaidiparthy_microsoft
+auto_discover: false
+repos:
+  - microsoft/amplifier-app-cli

@@ -1,0 +1,6 @@
+github:
+  - singh2
+  - gurksing_microsoft
+auto_discover: false
+repos:
+  - cpark4x/canvas-specialists

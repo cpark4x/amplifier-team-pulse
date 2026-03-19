@@ -1,0 +1,9 @@
+github:
+  - cpark4x
+  - cspark_microsoft
+auto_discover: true
+repos:
+  - cpark4x/canvas-specialists
+  - cpark4x/ridecast
+  - cpark4x/canvas-app
+  - technology-and-research/workspaces2
