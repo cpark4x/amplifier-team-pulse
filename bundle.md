@@ -1,10 +1,11 @@
 ---
 bundle:
   name: team-pulse
-  version: 0.1.0
+  version: 0.2.0
   description: >
-    Weekly commitment tracking, outcome auditing, and showcase generation for teams.
-    Drive outcome-oriented accountability through a fixed weekly rhythm.
+    Outcome-driven weekly accountability for multi-team orgs. Track outcomes,
+    commitments, and activity per person. Generate audits grouped by outcome
+    progress and narrative showcases for leadership.
 
 includes:
   - bundle: git+https://github.com/microsoft/amplifier-foundation@main
@@ -15,20 +16,24 @@ includes:
 
 **Outcome-driven weekly commitment tracking for teams.**
 
-Track what your team commits to each week, audit delivery against actual repo activity, and auto-generate showcases for multiple audiences.
+Track what your team commits to each week, link every commitment to a quarterly outcome, audit delivery against actual repo activity, and auto-generate showcases for multiple audiences — from team celebrations to leadership narratives.
 
-## What This Bundle Provides
+## Data Model
 
-### Weekly Rhythm
-- **Monday:** Team members log commitments with concrete outcomes
-- **Friday:** Tool audits delivery against repo activity
-- **Monday:** Manager reviews audit, sends showcases to team and leadership
+Three layers, each building on the last:
+- **Outcomes** (quarterly) — What are we trying to achieve?
+- **Commitments** (weekly) — What am I doing THIS WEEK to drive those outcomes?
+- **Activity** (daily) — What actually happened in GitHub?
 
-### Workflows (4 Recipes)
-- **log-commitments** — Each member logs weekly commitments with outcomes, repos, and priorities
-- **prep-audit** — Scans repos for activity, matches against commitments, generates audit
-- **draft-showcase** — Generates audience-appropriate showcases, posts to Teams on approval
-- **setup** — One-time team configuration
+Data is organized per person in `people/<name>/` directories. Org structure lives in `org.yaml`.
+
+## Workflows (6 Recipes)
+- **pull-activity** — Daily GitHub activity scan per person
+- **log-commitments** — Each member logs weekly commitments linked to outcomes via `drives:`
+- **set-outcomes** — Quarterly outcome setting through natural language
+- **prep-audit** — Outcome-first audit: matches activity against commitments and outcomes
+- **draft-showcase** — Team and leadership showcases with narrative rollup for Sam
+- **process-standup** — Extract per-person commitments from standup transcripts
 
 ---
 

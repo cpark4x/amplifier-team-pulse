@@ -1,10 +1,10 @@
 name: draft-showcase
 description: >
-  Generates team and leadership showcases from the finalized audit, then
-  posts to Teams via webhook on manager approval. Staged recipe: manager
-  reviews drafts before posting.
-version: "0.1.0"
-tags: ["showcase", "weekly", "teams", "staged"]
+  Generates outcome-first team and leadership showcases. Team showcase
+  groups by outcome progress. Leadership rollup for Sam leads with a
+  narrative paragraph for context. Staged recipe: manager reviews before posting.
+version: "0.2.0"
+tags: ["showcase", "weekly", "teams", "staged", "outcomes"]
 
 # Usage:
 #   "Draft the showcase"
@@ -22,8 +22,8 @@ stages:
         timeout: 600
         output: showcase_summary
         prompt: |
-          Generate two showcase documents from the weekly audit: one for the
-          team channel (celebratory) and one for leadership (outcome-focused).
+          Generate outcome-first showcases from the weekly audit data: a team
+          showcase, and a leadership narrative rollup for Sam.
 
           ## Step 1: Determine the Week
 
@@ -33,90 +33,114 @@ stages:
           Run `date +%Y-W%V` to get the current ISO week identifier.
           {% endif %}
 
+          Calculate Monday date for headers.
+
           ## Step 2: Read Inputs
 
-          1. Read `weeks/<WEEK_ID>/audit.md` — this is the source of truth
-          2. Read `team.yaml` — for showcase config (tone, recipient)
-          3. Read `CHANGELOG.md` — for trend data (last 3+ weeks if available)
+          1. **Read `org.yaml`** — for team structure, showcase config, members
+          2. **For each member, read:**
+             - `people/<name>/outcomes.md` — quarterly outcomes
+             - `people/<name>/weeks/<WEEK_ID>/audit.md` — this week's audit
+             - `people/<name>/weeks/<WEEK_ID>/commitments.md` — commitments
+          3. **Read team audit view:** `views/teams/workspaces/<WEEK_ID>-audit.md`
+          4. **Read manager rollup:** `views/managers/chris/<WEEK_ID>-rollup.md`
+          5. **Read `CHANGELOG.md`** — for trend data (last 3+ weeks)
+
+          If audit files don't exist yet, tell the user to run `prep-audit` first
+          and stop.
 
           ## Step 3: Generate Team Showcase
 
-          Write `weeks/<WEEK_ID>/showcase/team.md` with:
-          - **Tone:** Celebratory, specific, personal
-          - Name individuals and what they shipped
-          - Acknowledge stretch goals that were attempted
-          - Call out anything demo-worthy
-          - Include a "Carried Forward" section (what's rolling to next week)
-          - Keep it scannable — bullet points over paragraphs
+          Write to `showcases/workspaces/<WEEK_ID>-team.md`
 
-          Example structure:
+          This is an outcome-first showcase — group by outcome, not by person.
+          Tone: celebratory and specific.
+
+          Use this format:
+
           ```
-          # Team Update -- Week of <DATE>
+          # Workspaces Team -- Week of <MONDAY_DATE>
 
-          ## Shipped This Week
+          ## Outcome: <outcome-id>
+          Status: <On track / At risk / Shipped>
+          This week: <narrative of what happened — name people and what they did>
 
-          - **<Name>** shipped <thing> — <why it matters>
-          - **<Name>** landed <thing> — <impact>
+          ## Outcome: <next outcome>
+          ...
 
-          ## In Progress
-
-          - **<Name>** has <thing> nearly ready (<evidence>)
-
-          ## Stretch Goals Attempted
-
-          - <Name> started <stretch item> — <status>
+          ## Experimentation Highlights
+          - **<Name>** shipped <thing> — <why it's cool>
+          - **<Name>** explored <thing> — <what came of it>
 
           ## Carried Forward
+          - <item rolling to next week>
 
-          - <item> (rolling to next week)
+          ## Scorecard
+          Must-ship: <shipped>/<total> (<rate>%)
+          Alignment: <alignment>%
           ```
 
-          ## Step 4: Generate Leadership Showcase
+          ## Step 4: Generate Leadership Rollup for Sam
 
-          Write `weeks/<WEEK_ID>/showcase/leadership.md` with:
-          - **Tone:** Outcome-focused, concise, skimmable in 60 seconds
-          - **Recipient:** The leadership contact from team.yaml (e.g., Sam)
-          - Connect work to team mission — no implementation details
-          - Include a must-ship scorecard:
-            ```
-            ## Must-Ship Scorecard
-            This week: <shipped>/<total> shipped (<rate>%)
-            ```
-          - If 3+ weeks of CHANGELOG data exist, include a trend line:
-            ```
-            Trend: W10 68% > W11 82% > W12 73%
-            ```
-          - Show "Next Week Focus" instead of "Carried Forward" (forward-looking)
+          Write to `views/leadership/sam/<WEEK_ID>-rollup.md`
 
-          Example structure:
+          **This is the most important output.** Sam doesn't know what these
+          projects are. The rollup MUST lead with a narrative paragraph that:
+          - Explains what each team works on and why it matters
+          - Highlights what's on track
+          - Flags what needs attention and why
+          - Calls out experimentation wins
+
+          Sam should be able to read the first two paragraphs and understand the
+          state of the org in 30 seconds.
+
+          Use this exact format:
+
           ```
-          # Weekly Update for <Recipient> -- Week of <DATE>
+          # Sam's Org -- Week of <MONDAY_DATE>
 
-          ## Must-Ship Scorecard
+          <Narrative paragraph 1: What Chris's team is focused on. What's on
+          track — name the outcomes and why they matter. What's concerning —
+          explain the situation, not just "at risk".>
 
-          This week: 6/8 shipped (75%)
-          Trend: W10 68% > W11 82% > W12 75%
+          <Narrative paragraph 2: Experimentation highlights. What was shipped
+          that shows the team is building real tools. Keep it concrete — names,
+          artifacts, impact.>
 
-          ## Key Outcomes
+          ## Outcomes Summary
 
-          - <Outcome that matters to leadership>
-          - <Another outcome>
+          | Outcome | Owner | Status | Weeks Active |
+          |---------|-------|--------|-------------|
+          | <outcome> | <person> | <On track/At risk/Stalled> | <N> |
 
-          ## Next Week Focus
+          ## Needs Attention
+          - <outcome>: <explanation of why and suggested action>
 
-          - <What the team is targeting next>
+          ## Team Health
+          | Manager | Outcomes | On Track | At Risk | Alignment |
+          |---------|----------|----------|---------|-----------| 
+          | Chris   | <N>      | <N>      | <N>     | <N>%      |
           ```
 
-          ## Step 5: Create folders if needed
+          The "Needs Attention" section should have specific, actionable items —
+          not just "X is at risk" but "X is at risk because Y, consider Z."
 
-          `mkdir -p weeks/<WEEK_ID>/showcase`
+          For "Weeks Active", count consecutive weeks with at least one commitment
+          for that outcome.
+
+          ## Step 5: Create directories if needed
+
+          ```
+          mkdir -p showcases/workspaces
+          mkdir -p views/leadership/sam
+          ```
 
           ## Output
 
-          After writing both files, summarize what was generated:
+          After writing both files, summarize:
           - Path to team showcase
-          - Path to leadership showcase
-          - Key stats (ship rate, highlights)
+          - Path to leadership rollup
+          - Key stats (ship rate, alignment, risk items)
 
     approval:
       required: true
@@ -125,7 +149,7 @@ stages:
 
         {{showcase_summary}}
 
-        **Review the generated files** in `weeks/` and edit directly if needed.
+        **Review the generated files** and edit directly if needed.
 
         When you're satisfied, **approve to post to Teams**.
         Reply "approve" to post, or edit the files first and then approve.
@@ -141,11 +165,12 @@ stages:
 
           ## Step 1: Read Config
 
-          Read `team.yaml` to get the webhook URLs:
-          - `showcase.team.channel` — the team webhook URL (references env var)
-          - `showcase.leadership.channel` — the leadership webhook URL (references env var)
+          Read `org.yaml` to get the webhook URLs from the `showcase:` section:
+          - `showcase.workspaces.channel` — team webhook URL
+          - `showcase.leadership.channel` — leadership webhook URL
+          - `showcase.org-wide.channel` — org-wide webhook URL (if applicable)
 
-          Resolve the environment variable names (e.g., `$TEAM_PULSE_TEAM_WEBHOOK`)
+          Resolve environment variable names (e.g., `$TEAM_PULSE_TEAM_WEBHOOK`)
           by reading the actual env var value.
 
           ## Step 2: Determine the Week
@@ -158,9 +183,9 @@ stages:
 
           ## Step 3: Post Team Showcase
 
-          Read `weeks/<WEEK_ID>/showcase/team.md`.
+          Read `showcases/workspaces/<WEEK_ID>-team.md`.
 
-          Convert the content to a Teams Adaptive Card JSON payload:
+          Convert to a Teams Adaptive Card JSON payload:
           ```json
           {
             "type": "message",
@@ -195,16 +220,18 @@ stages:
           curl -X POST -H "Content-Type: application/json" -d @/tmp/team-showcase.json "$TEAM_PULSE_TEAM_WEBHOOK"
           ```
 
-          ## Step 4: Post Leadership Showcase
+          ## Step 4: Post Leadership Rollup
 
-          Same process for `weeks/<WEEK_ID>/showcase/leadership.md`,
-          posting to `$TEAM_PULSE_LEADERSHIP_WEBHOOK`.
+          Read `views/leadership/sam/<WEEK_ID>-rollup.md`.
+          Same Adaptive Card process, post to `$TEAM_PULSE_LEADERSHIP_WEBHOOK`.
 
           ## Step 5: Commit and Push
 
-          - `git add weeks/<WEEK_ID>/showcase/`
-          - `git commit -m "showcase: post week <WEEK_ID>"`
-          - `git push`
+          ```
+          git add showcases/ views/
+          git commit -m "showcase: post week <WEEK_ID>"
+          git push
+          ```
 
           ## Error Handling
 

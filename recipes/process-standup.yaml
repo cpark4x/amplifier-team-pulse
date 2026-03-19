@@ -1,0 +1,164 @@
+name: process-standup
+description: >
+  Extracts per-person commitments, status updates, and blockers from a
+  pasted transcript or meeting notes. Matches extracted commitments to
+  outcomes and writes commitment files after manager review.
+version: "0.1.0"
+tags: ["standup", "transcript", "commitments", "extraction"]
+
+# Usage:
+#   "Process this standup" (then paste the transcript)
+#   amplifier tool invoke recipes operation=execute recipe_path=@team-pulse:recipes/process-standup.yaml
+
+context:
+  transcript_path: ""  # Optional: path to a .vtt or .txt file. If empty, asks user to paste.
+
+steps:
+  - id: process-standup
+    agent: self
+    timeout: 600
+    output: standup_result
+    prompt: |
+      You are extracting per-person data from a standup or meeting transcript
+      for Team Pulse.
+
+      ## Step 1: Get the Transcript
+
+      {% if transcript_path != "" %}
+      Read the transcript from: {{transcript_path}}
+      {% else %}
+      Ask the user to paste the transcript or provide a file path.
+      Accept: raw text, .vtt content, or a file path to read.
+      {% endif %}
+
+      ## Step 2: Read Org and Outcomes Data
+
+      1. **Read `org.yaml`** to get the member list — you'll use names to
+         identify speakers in the transcript.
+      2. **For each member**, read `people/<name>/outcomes.md` to get their
+         current outcomes. You'll need these to match extracted commitments
+         to outcomes.
+
+         Member directory mapping:
+         - "Chris P" → `chris`
+         - "Gurkaran" → `gurkaran`
+         - "Manoj" → `manoj`
+         - "Ken" → `ken`
+         - "Salil Das" → `salil`
+         - "Samuel Lee" → `samuel`
+         - "Alex Lopez" → `alex`
+
+      ## Step 3: Determine the Week
+
+      Run `date +%Y-W%V` to get the current ISO week identifier.
+      Run `date +%Y-%m-%d` to get today's date.
+      Determine Monday of this week for file headers.
+
+      ## Step 4: Extract Per-Person Data
+
+      Parse the transcript and extract for each identified speaker:
+
+      1. **What they're working on** → these become commitments (future, `- [ ]`)
+      2. **What they shipped/completed** → these become shipped items (`- [x]`)
+      3. **Blockers mentioned** → note these for the manager
+
+      For each extracted commitment or shipped item:
+      - Try to match it to an outcome from their `outcomes.md`
+      - Set the `drives:` field to the matching outcome ID, or `none` if no match
+      - Infer the repo if mentioned, otherwise leave repo blank
+      - Default priority to `must-ship` unless context suggests otherwise
+
+      Handle ambiguity:
+      - If you can't identify a speaker, group their text under "Unknown Speaker"
+      - If a statement is ambiguous (not clearly a commitment or status update),
+        include it with a "?" note for the manager to resolve
+
+      ## Step 5: Present Extracted Data for Review
+
+      Show the manager what you extracted, organized by person:
+
+      ```
+      ## Ken
+      Commitments:
+      - [ ] Build eval harness for LifeOS
+        - drives: lifeos-eval (matched from outcomes)
+        - repo: kenotron-ms/lifeos
+        - priority: must-ship
+      - [x] Shipped agent-daemon v0.2.9
+        - drives: experimentation (matched from outcomes)
+        - evidence: mentioned SSE live log streaming
+        - repo: kenotron-ms/agent-daemon
+      Blockers:
+      - (none mentioned)
+
+      ## Gurkaran
+      ...
+      ```
+
+      Ask the manager:
+      - "Does this look right? I can adjust any item."
+      - "Any items I should add, remove, or re-categorize?"
+      - "Should I write these to the commitment files?"
+
+      Wait for confirmation before writing.
+
+      ## Step 6: Check for Existing Commitments
+
+      Before writing, check if each member already has a commitment file for
+      this week at `people/<name>/weeks/<WEEK_ID>/commitments.md`.
+
+      - If YES: read the existing file and MERGE — add new items, update
+        status of existing items if the transcript shows they shipped. Do NOT
+        overwrite existing commitments.
+      - If NO: create a new file.
+
+      ## Step 7: Write Commitment Files
+
+      For each person with extracted data, write to:
+      `people/<name>/weeks/<WEEK_ID>/commitments.md`
+
+      Use the standard commitment format:
+
+      ```
+      # <Name> -- Week of <MONDAY_DATE>
+      Logged: <TODAY_DATE> (from standup transcript)
+
+      ## Carried Forward
+
+      <carried items if merging with existing file, or "(none)" if new>
+
+      ## Commitments
+
+      - [ ] <commitment description>
+        - drives: <outcome_id or none>
+        - outcome: <what done looks like>
+        - repo: <owner/repo>
+        - priority: must-ship
+      - [x] <shipped item>
+        - drives: <outcome_id or none>
+        - evidence: <what was delivered>
+        - repo: <owner/repo>
+        - priority: must-ship
+      ```
+
+      ## Step 8: Update profile.yaml with New Repos
+
+      For each person, check if any new repos were mentioned. If so, add them
+      to `people/<name>/profile.yaml`.
+
+      ## Step 9: Commit and Push
+
+      ```
+      git add people/*/weeks/*/commitments.md people/*/profile.yaml
+      git commit -m "commitments: extract from standup transcript <WEEK_ID>"
+      git push
+      ```
+
+      ## Step 10: Summary
+
+      Report:
+      - How many people had data extracted
+      - How many commitments total (future + shipped)
+      - How many were matched to outcomes vs. unconnected
+      - Any blockers flagged
+      - Any ambiguous items that need follow-up

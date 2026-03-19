@@ -63,6 +63,8 @@ recipes(operation="execute", recipe_path="@team-pulse:recipes/prep-audit.yaml", 
 
 **When the user says:** "prep the audit", "run the audit", "generate audit", "show me the audit", "prep my 1:1 with Ken"
 
+**1:1 Prep shortcut:** When the user says "prep my 1:1 with <name>", run prep-audit and then show only that person's audit data from `people/<name>/weeks/<WEEK>/audit.md`. This is a filtered view of the same audit, not a separate recipe.
+
 ## Draft Showcase (Weekly, manager)
 
 Generates outcome-first team and leadership showcases. Includes narrative rollup for Sam. Posts to Teams on manager approval. This is a staged recipe — the manager reviews drafts before they are posted.
