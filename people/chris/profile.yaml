@@ -1,9 +1,16 @@
 github:
   - cpark4x
   - cspark_microsoft
+emails:
+  - chrispark@example.com
 auto_discover: true
 repos:
   - cpark4x/canvas-specialists
   - cpark4x/ridecast
   - cpark4x/canvas-app
+  - cpark4x/amplifier-team-pulse
+  - cpark4x/amplifier-doc-driven-dev
+  - cpark4x/amplifier-pr-faq
+  - cpark4x/amplifier-writing-readme
+  - ramparte/amplifier-stories
   - technology-and-research/workspaces2

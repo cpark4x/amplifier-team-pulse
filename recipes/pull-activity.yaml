@@ -17,7 +17,7 @@ context:
 steps:
   - id: pull-activity
     agent: self
-    timeout: 600
+    timeout: 900
     output: activity_result
     prompt: |
       You are pulling daily GitHub activity for all team members in Team Pulse.
@@ -50,6 +50,7 @@ steps:
 
       2. **For each member, read `people/<name>/profile.yaml`** to get:
          - `github:` — list of GitHub handles (may be empty)
+         - `emails:` — list of git author emails (may be empty or absent)
          - `repos:` — list of tracked repositories (may be empty)
          - `auto_discover:` — whether to scan for untracked repos
 
@@ -66,25 +67,39 @@ steps:
       `gh auth switch --user <appropriate_handle>`
       If a scan fails with 404, try switching to the member's other handle and retry.
 
-      For each repo in their `profile.yaml`, try **all** of the member's GitHub
-      handles as the `--author` filter:
+      **IMPORTANT — Batch scanning for speed.** Scan all repos for a member in
+      a single bash script to minimize round-trips. Build the full script, run it
+      once, then parse the output. Do NOT run individual gh commands one at a time.
 
-      **Merged PRs (since yesterday):**
+      For each repo, collect PRs and commits:
+
+      **PRs (use first handle that works):**
       ```
       gh pr list --repo <owner/repo> --state merged --search "merged:>=<DATE>" --author <handle> --json number,title,mergedAt,headRefName --limit 50
-      ```
-
-      **Open PRs by this member:**
-      ```
       gh pr list --repo <owner/repo> --state open --author <handle> --json number,title,createdAt,headRefName --limit 50
       ```
 
-      **Recent commits on default branch:**
-      ```
-      gh api "repos/<owner/repo>/commits?since=<YESTERDAY>T00:00:00Z&until=<DATE>T23:59:59Z&author=<handle>" --jq '.[] | .sha[:7] + " " + .commit.message'
-      ```
+      **Commits — email-first approach (ONE call per repo, no retries):**
 
-      Run for each handle. Merge results and deduplicate by PR number or commit SHA.
+      Many developers' local git emails aren't linked to their GitHub accounts,
+      so the `?author=<handle>` filter silently returns 0 results. To avoid this:
+
+      1. Fetch recent commits WITHOUT an author filter:
+         ```
+         gh api "repos/<owner/repo>/commits?since=<YESTERDAY>T00:00:00Z&until=<DATE>T23:59:59Z&per_page=100" \
+           --jq '.[] | .sha[:7] + "\t" + .commit.author.email + "\t" + (.author.login // "null") + "\t" + (.commit.message | split("\n")[0])'
+         ```
+      2. Filter locally: keep commits where `commit.author.email` matches any
+         entry in the member's `emails:` list, OR `author.login` matches any
+         of their `github:` handles.
+
+      This is ONE API call per repo regardless of how many handles or emails
+      the member has. It eliminates the retry pattern entirely.
+
+      If a member has no `emails:` field, fall back to the old `?author=<handle>`
+      filter (try each handle).
+
+      Deduplicate by PR number or commit SHA across all results.
 
       If a command fails (repo not found, no permissions), note the error and
       continue — don't stop the entire pull.
@@ -99,12 +114,12 @@ steps:
       gh api "users/<handle>/events?per_page=100" --jq '[.[] | select(.created_at >= "<DATE>T00:00:00Z") | .repo.name] | unique | .[]'
       ```
 
-      Run for each handle. Compare against their `repos:` list. Flag any untracked
-      repos with a commit count:
+      Run for each handle. Compare against their `repos:` list. For each discovered
+      repo NOT already in `repos:`, run the **same full scan as Step 3** — merged PRs,
+      open PRs, and recent commits using every handle. This is the fix: discovered
+      repos get the same treatment as tracked repos, not just a count.
 
-      ```
-      gh api "repos/<owner/repo>/commits?since=<YESTERDAY>T00:00:00Z&until=<DATE>T23:59:59Z&author=<handle>" --jq 'length'
-      ```
+      Keep a list of newly discovered repos for the summary.
 
       ## Step 5: Write Activity Files
 
@@ -130,14 +145,31 @@ steps:
       ## <next repo>
       ...
 
-      ## Untracked Repos
-      Activity found in repos not in profile.yaml:
-      - <owner/repo>: <N> commits
+      ## Auto-Discovered Repos
+
+      Repos found via auto-discover that are NOT in profile.yaml get the same
+      full format as tracked repos above, with "(auto-discovered)" in the heading:
+
+      ## <owner/repo> (auto-discovered)
+
+      ### Merged PRs
+      - PR #<N> "<title>" (merged <date>)
+
+      ### Open PRs
+      - PR #<N> "<title>" (opened <date>, branch: <branch>)
+
+      ### Commits
+      - <sha> <message>
+
+      ---
+      **Untracked repos found:** <owner/repo>, <owner/repo>
+      Consider adding to profile.yaml for faster future pulls.
       ```
 
       Omit any section that has no data (e.g., if no merged PRs, skip that heading).
-      Omit the "Untracked Repos" section entirely if auto_discover is false or no
-      untracked repos were found.
+      Omit the "Auto-Discovered Repos" sections entirely if auto_discover is false
+      or no untracked repos were found. Omit the "Untracked repos found" footer
+      if there are none.
 
       If a member had zero activity across all repos, do NOT create a file for them.
 
