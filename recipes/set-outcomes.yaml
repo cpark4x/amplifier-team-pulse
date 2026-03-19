@@ -1,0 +1,115 @@
+name: set-outcomes
+description: >
+  Set or update quarterly outcomes for a team member. Conversationally
+  gathers outcomes and writes them to the person-centric outcomes.md file.
+  Each outcome gets a short ID and an observable, time-bounded description.
+version: "0.1.0"
+tags: ["outcomes", "quarterly", "planning"]
+
+# Usage:
+#   "Set outcomes for Ken"
+#   amplifier tool invoke recipes operation=execute recipe_path=@team-pulse:recipes/set-outcomes.yaml context='{"member_name": "Ken"}'
+
+context:
+  member_name: ""  # Required: which member to set outcomes for
+
+steps:
+  - id: set-outcomes
+    agent: self
+    timeout: 300
+    output: outcomes_result
+    prompt: |
+      You are helping set quarterly outcomes for a team member in Team Pulse.
+
+      ## Step 1: Identify the Member
+
+      {% if member_name != "" %}
+      The member is: {{member_name}}
+      {% else %}
+      Ask the user: "Who are we setting outcomes for?"
+      {% endif %}
+
+      - Read `org.yaml` and match the name to a member entry
+      - Determine the lowercase directory name:
+        - "Chris P" → `chris`
+        - "Gurkaran" → `gurkaran`
+        - "Manoj" → `manoj`
+        - "Ken" → `ken`
+        - "Salil Das" → `salil`
+        - "Samuel Lee" → `samuel`
+        - "Alex Lopez" → `alex`
+
+      ## Step 2: Read Current Outcomes
+
+      Read `people/<name>/outcomes.md` if it exists. Show the user what's
+      currently there:
+      - If it's a placeholder ("Outcomes not yet defined"), say so
+      - If it has real outcomes, list them and ask if they want to update,
+        replace, or add to them
+
+      ## Step 3: Determine the Quarter
+
+      Run `date +%Y-%m-%d` to get today's date. Determine the current quarter
+      (Q1 = Jan-Mar, Q2 = Apr-Jun, Q3 = Jul-Sep, Q4 = Oct-Dec) and year.
+
+      ## Step 4: Gather Outcomes
+
+      Ask the user to describe this person's focus areas. Accept natural
+      language — for example:
+      - "Ken's focus this quarter is LifeOS adoption and building the eval system"
+      - "Manoj needs to finish the CLI migration and start on the new plugin architecture"
+
+      For each outcome mentioned, extract or collaboratively define:
+
+      1. **Short ID (slug):** A kebab-case identifier like `lifeos-adoption`,
+         `cli-migration`, `experimentation`. Suggest one and let the user adjust.
+
+      2. **Observable description:** What does success look like? Push for
+         specificity. If they say "work on LifeOS", ask "what would tell you
+         LifeOS adoption is going well — installs? retention? active users?"
+
+         Good: "LifeOS is actively used by 5+ people beyond Ken, with retention past first week."
+         Bad: "Make LifeOS better."
+
+      3. **Experimentation is always valid.** If someone has exploratory work,
+         suggest an `experimentation` outcome like:
+         "Ship 2+ exploratory projects this quarter that test new ideas."
+
+      Keep asking until the user is done. Confirm the final list before writing.
+
+      ## Step 5: Write the File
+
+      Write to `people/<name>/outcomes.md` using this exact format:
+
+      ```
+      # <Name> -- <Q#> <YEAR> Outcomes
+
+      ## <outcome-slug-1>
+      <Observable, time-bounded description>
+
+      ## <outcome-slug-2>
+      <Observable, time-bounded description>
+
+      ## experimentation
+      <Description if applicable>
+      ```
+
+      Rules:
+      - The `##` heading IS the outcome ID — it must be kebab-case
+      - The paragraph under each heading is the description
+      - No bullet points, no sub-sections — just the ID heading and a description paragraph
+      - This format is what other recipes parse to get outcome IDs and descriptions
+
+      ## Step 6: Commit and Push
+
+      ```
+      git add people/<name>/outcomes.md
+      git commit -m "outcomes(<name>): set <Q#> <YEAR> outcomes"
+      git push
+      ```
+
+      ## Tone
+
+      Be collaborative, not bureaucratic. This should feel like a planning
+      conversation, not a form to fill out. Help the user articulate what
+      success looks like in concrete terms.

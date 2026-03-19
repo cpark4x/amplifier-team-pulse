@@ -1,10 +1,11 @@
 name: log-commitments
 description: >
-  Weekly commitment entry for team members. Surfaces carry-over from last week,
-  captures commitments with outcomes and priorities, writes the commitment file,
-  and commits to the shared repo.
-version: "0.1.0"
-tags: ["commitments", "weekly", "team"]
+  Weekly commitment entry for team members. Reads outcomes to prompt for
+  drives: linking, surfaces carry-over from last week, captures commitments
+  with outcomes, repos, and priorities, and writes to the person-centric
+  data structure.
+version: "0.2.0"
+tags: ["commitments", "weekly", "team", "outcomes"]
 
 # Usage:
 #   "Log my commitments"
@@ -35,54 +36,74 @@ steps:
          {% else %}
          - Run `git config user.name` and `git config user.email` to detect the user
          {% endif %}
-         - Read `team.yaml` and match the user to a team member entry by name or github handle
-         - If no match found, show the team list and ask the user who they are
+         - Read `org.yaml` and match the user to a member entry by name
+         - Determine the lowercase directory name for this member:
+           - "Chris P" → `chris`
+           - "Gurkaran" → `gurkaran`
+           - "Manoj" → `manoj`
+           - "Ken" → `ken`
+           - "Salil Das" → `salil`
+           - "Samuel Lee" → `samuel`
+           - "Alex Lopez" → `alex`
+         - If no match found, show the member list from `org.yaml` and ask who they are
 
-      3. **Create the week folder** if it doesn't exist:
-         - `mkdir -p weeks/<WEEK_ID>/commitments`
-         - `mkdir -p weeks/<WEEK_ID>/showcase`
+      3. **Read the member's profile and outcomes:**
+         - Read `people/<name>/profile.yaml` to get their tracked repos
+         - Read `people/<name>/outcomes.md` to get their current outcomes
+
+      4. **Create the week folder** if it doesn't exist:
+         - `mkdir -p people/<name>/weeks/<WEEK_ID>`
 
       ## Carry-Over Check
 
-      4. **Find the previous week's commitment file** for this member:
-         - List folders in `weeks/`, find the most recent one before the current week
-         - Read `weeks/<PREV_WEEK>/commitments/<lowercase_name>.md`
+      5. **Find the previous week's commitment file** for this member:
+         - List folders in `people/<name>/weeks/`, find the most recent one before the current week
+         - Read `people/<name>/weeks/<PREV_WEEK>/commitments.md`
          - Any items still marked `- [ ]` (unchecked) are potential carry-over
          - If no previous week folder exists, this is their first week
 
-      5. **Present carry-over to the user:**
+      6. **Present carry-over to the user:**
          - If there are unchecked items from last week, show them
          - Ask which ones to carry forward this week
          - For carried items, record the originating week in the `carried-from` field
          - If this is their first week, say so
 
+      ## Show Current Outcomes
+
+      7. **Display the member's outcomes** from `people/<name>/outcomes.md`:
+         - Show each outcome ID and description
+         - Say: "These are your current outcomes. Each commitment should link
+           to one of these via the `drives:` field. You can also say 'none'
+           if something doesn't connect to an outcome — but I'll flag it."
+
       ## Gather Commitments
 
-      6. **For each item, first ask: "Is this something you're planning to ship, or something you already shipped?"**
+      8. **For each item, first ask: "Is this something you're planning to ship, or something you already shipped?"**
 
          **If planning to ship (future commitment):**
          - What is the commitment? (brief description)
          - What does "done" look like? (specific, measurable outcome)
-         - Which repo is it tied to? (show their repos from team.yaml, or "none")
+         - Which outcome does this drive? (show outcomes from step 7 as options,
+           or "none" — but flag unconnected work)
+         - Which repo is it tied to? (show their repos from profile.yaml, or any owner/repo)
          - Is it must-ship or stretch?
          - Push for specific outcomes. If an outcome is vague (e.g., "work on feature X"),
            ask: "What would you show someone on Friday to prove this shipped?"
 
          **If already shipped:**
          - What did you ship? (brief description)
-         - What was the outcome? (what was delivered -- PR link, artifact, result)
-         - Which repo? (show their repos from team.yaml, or "none")
+         - What was the outcome? (what was delivered — PR link, artifact, result)
+         - Which outcome does this drive? (same as above)
+         - Which repo?
          - Was it must-ship or stretch?
          - Write it as `- [x]` (already checked) with an `- evidence:` field instead of `- outcome:`
-         - This is common with AI-assisted work -- exploratory sessions often produce
-           real deliverables before commitments are declared. Treat these as wins, not anomalies.
 
-      7. **Keep prompting** until the user says they're done adding items
+      9. **Keep prompting** until the user says they're done adding items
 
       ## Write the File
 
-      8. **Write the commitment file** to:
-         `weeks/<WEEK_ID>/commitments/<lowercase_first_name>.md`
+      10. **Write the commitment file** to:
+         `people/<name>/weeks/<WEEK_ID>/commitments.md`
 
          Use this exact format:
 
@@ -98,45 +119,51 @@ steps:
          ## Commitments
 
          - [ ] <future commitment description>
+           - drives: <outcome_id>
            - outcome: <what done looks like>
            - repo: <owner/repo>
            - priority: must-ship
            - carried-from: <WEEK_ID>
          - [x] <already shipped item>
-           - evidence: <what was delivered -- PR link, artifact, result>
+           - drives: <outcome_id>
+           - evidence: <what was delivered — PR link, artifact, result>
            - repo: <owner/repo>
            - priority: must-ship
          - [ ] <another commitment>
+           - drives: none
            - outcome: <outcome>
            - repo: <owner/repo>
            - priority: stretch
          ```
 
          Rules:
+         - Every commitment MUST have a `drives:` field — either an outcome ID
+           from their outcomes.md, or `none`
          - Only include `carried-from` on items carried from a previous week
-         - `repo` and `outcome`/`evidence` are strongly encouraged but optional (bare bullets still work)
+         - `repo` and `outcome`/`evidence` are strongly encouraged but optional
          - Priority must be exactly `must-ship` or `stretch`
          - Future items use `- [ ]` with `outcome:` (what done looks like)
          - Already-shipped items use `- [x]` with `evidence:` (what was delivered)
 
-      ## Update team.yaml with New Repos
+      ## Update profile.yaml with New Repos
 
-      9. **Check for new repos:** Compare every `repo:` value in the commitment file
-         against this member's `repos:` list in `team.yaml`.
-         - If a repo is mentioned that's NOT already in their list, append it.
-         - This keeps `team.yaml` as the growing record of all projects a member
-           has ever worked on, so audits and historical lookups work across weeks.
+      11. **Check for new repos:** Compare every `repo:` value in the commitment file
+         against this member's `repos:` list in `people/<name>/profile.yaml`.
+         - If a repo is mentioned that's NOT already in their list, append it
+           to the `repos:` array in `profile.yaml`.
 
       ## Commit and Push
 
-      10. **Commit the file (and team.yaml if updated):**
-         - `git add weeks/<WEEK_ID>/commitments/<name>.md`
-         - If `team.yaml` was modified: `git add team.yaml`
+      12. **Commit the file (and profile.yaml if updated):**
+         - `git add people/<name>/weeks/<WEEK_ID>/commitments.md`
+         - If `profile.yaml` was modified: `git add people/<name>/profile.yaml`
          - `git commit -m "commitments(<name>): log week <WEEK_ID>"`
          - `git push`
 
       ## Tone
 
       Be conversational and encouraging. Help the team member think about what
-      "done" looks like for each commitment. Celebrate carry-over honesty —
+      "done" looks like for each commitment. When they provide a commitment
+      without a `drives:` link, gently ask which outcome it supports —
+      accept "none" without making them feel bad. Celebrate carry-over honesty —
       acknowledging unfinished work is a feature, not a failure.
