@@ -1,0 +1,163 @@
+name: confirm-alignment
+description: >
+  Weekly alignment confirmation for team members. Reads activity files for the
+  target week, clusters them by repository, links clusters to outcomes, and
+  writes a summary file. Quick manager alignment check — not a performance review.
+version: "0.1.0"
+tags: ["alignment", "weekly", "outcomes", "summary"]
+
+# Usage:
+#   "Confirm alignment for Ken"
+#   amplifier tool invoke recipes operation=execute recipe_path=@team-pulse:recipes/confirm-alignment.yaml context='{"member_name": "Ken"}'
+#   amplifier tool invoke recipes operation=execute recipe_path=@team-pulse:recipes/confirm-alignment.yaml context='{"member_name": "Ken", "week": "2026-W12"}'
+
+context:
+  member_name: ""  # Required: which team member to confirm alignment for
+  week: ""         # Optional: ISO week ID (e.g. 2026-W12); defaults to current week
+
+steps:
+  - id: confirm-alignment
+    agent: self
+    timeout: 600
+    output: alignment_result
+    prompt: |
+      You are helping a manager do a quick weekly alignment check for a team member in Team Pulse.
+      This should take about 30 seconds of manager time — efficient, not ceremonial.
+
+      ## Step 1: Determine the Week
+
+      {% if week != "" %}
+      Use week: {{week}}
+      Parse the ISO week identifier to calculate Monday and Sunday dates for this week.
+      {% else %}
+      Run `date +%Y-W%V` to get the current ISO week identifier (e.g., 2026-W12).
+      {% endif %}
+
+      - Calculate the Monday date of the target week (YYYY-MM-DD format)
+      - Calculate the Sunday date of the target week (YYYY-MM-DD format)
+      - Store the week identifier as WEEK_ID (e.g., 2026-W12)
+      - Store the Monday date as MONDAY_DATE (e.g., 2026-03-18)
+
+      ## Step 2: Identify the Team Member
+
+      {% if member_name != "" %}
+      The member is: {{member_name}}
+      Match this name against org.yaml to confirm they exist.
+      {% else %}
+      Ask the manager: "Which team member are we confirming alignment for?"
+      {% endif %}
+
+      Determine the lowercase directory name for this member:
+        - "Chris P" → `chris`
+        - "Gurkaran" → `gurkaran`
+        - "Manoj" → `manoj`
+        - "Ken" → `ken`
+        - "Salil Das" → `salil`
+        - "Samuel Lee" → `samuel`
+        - "Alex Lopez" → `alex`
+
+      If no match is found, read `org.yaml` and show the member list, then ask the manager who they mean.
+      Store the matched directory name as `name` (e.g., `ken`).
+
+      ## Step 3: Read Activity Files
+
+      - List all files in `people/<name>/activity/`
+      - Identify files whose dates (from the filename, e.g., `2026-03-18.md`) fall within
+        Monday through Sunday of the target week (inclusive)
+      - Read each matching activity file
+
+      If no activity files exist for the target week:
+      - Tell the manager: "No activity files found for <name> for week <WEEK_ID>.
+        Run pull-activity first, then come back to confirm alignment."
+      - Stop here.
+
+      ## Step 4: Cluster Activity by Repository
+
+      Parse the activity files and group activity by repository:
+      - Activity files use `## <owner/repo>` headings to separate repos
+      - For each repository cluster, collect:
+        - Total commit count for the week
+        - Merged PR count
+        - Open PR count
+        - All commit messages and PR titles
+        - Whether the repo was `(auto-discovered)` — preserve this annotation
+      - Generate a one-line summary of the work done in each cluster
+        (e.g., "Refactored auth module and fixed login bug")
+      - Merge activity across all days in the week — a repo that appears in
+        multiple daily files is one cluster
+
+      ## Step 5: Read Outcomes
+
+      - Read `people/<name>/outcomes.md`
+      - Check whether it contains real outcomes or a placeholder:
+        - Placeholder: contains "Outcomes not yet defined" or similar stub text
+        - Real outcomes: has `##` headings in kebab-case (these are outcome IDs)
+      - If it's a placeholder, flag it and note that outcome linking will be skipped
+      - Store the list of outcome IDs and their descriptions for use in Step 6
+
+      ## Step 6: Present Clusters to Manager
+
+      Show the manager a summary of the week's activity:
+
+      For each repository cluster, display:
+      - Repository name (with `(auto-discovered)` note if applicable)
+      - Commit count, merged PR count, open PR count
+      - One-line summary of work done
+
+      Then:
+      - If real outcomes exist:
+        - Show the numbered outcome list
+        - Ask: "For each cluster, which outcome does it drive? You can say the
+          number, the outcome ID, or 'unlinked' if it doesn't connect to one."
+        - Accept corrections to the cluster summaries if the manager offers them
+      - If no real outcomes (placeholder):
+        - Just ask: "Does this summary look accurate? Any corrections?"
+
+      Keep this quick — target 30 seconds of manager time.
+      Accept the manager's linking decisions without pushing back.
+
+      ## Step 7: Write Summary File
+
+      Create the directory and write the summary file:
+
+      ```
+      mkdir -p people/<name>/weeks/<WEEK_ID>
+      ```
+
+      Write to `people/<name>/weeks/<WEEK_ID>/summary.md` using this exact format:
+
+      ```
+      # <Name> — Week of <MONDAY_DATE>
+
+      ## Activity Clusters
+
+      ### <owner/repo> (<N> commits)
+      <one-line summary of work done>
+      drives: <outcome-id>
+
+      ### <owner/repo> (<N> commits)
+      <one-line summary of work done>
+      drives: <outcome-id>
+      ```
+
+      Rules:
+      - Every cluster MUST have a `drives:` line — if the manager said "unlinked"
+        or no outcome was given, write `drives:` with an empty value
+      - Auto-discovered repos use the format `### <owner/repo> (auto-discovered, <N> commits)`
+      - `<Name>` is the display name (e.g., "Ken", "Manoj"), not the directory name
+      - `<MONDAY_DATE>` is the Monday of the target week (YYYY-MM-DD)
+      - `<outcome-id>` is the kebab-case outcome ID from outcomes.md, or empty if unlinked
+
+      ## Step 8: Commit and Push
+
+      ```
+      git add people/<name>/weeks/<WEEK_ID>/summary.md
+      git commit -m "alignment(<name>): confirm week <WEEK_ID>"
+      git push
+      ```
+
+      ## Tone
+
+      Be efficient and conversational. This is a quick alignment check, not a
+      performance review. Keep the interaction focused — show the summary,
+      ask for outcome links, write the file. Done.
