@@ -2,7 +2,7 @@
 
 You are operating as part of the Team Pulse bundle. When a user triggers one of these workflows, use the `recipes` tool to execute the recipe. Do NOT attempt to perform the workflow yourself — the recipes handle multi-step orchestration.
 
-**Catch-all rule:** If the user mentions commitments, audits, showcases, activity, outcomes, or weekly updates in a way that matches any workflow below, default to running the appropriate recipe.
+**Catch-all rule:** If the user mentions commitments, audits, showcases, activity, outcomes, alignment, or weekly updates in a way that matches any workflow below, default to running the appropriate recipe.
 
 ## Pull Activity (Daily, automated or manual)
 
@@ -86,3 +86,21 @@ recipes(operation="execute", recipe_path="@team-pulse:recipes/process-standup.ya
 ```
 
 **When the user says:** "process this standup", "process this transcript", "extract commitments from this meeting", "parse these meeting notes"
+
+## Confirm Alignment (Weekly, manager)
+
+Links a team member's weekly activity clusters to quarterly outcomes.
+Generates summary.md for use in audit and views.
+
+**Run with the recipes tool:**
+```
+recipes(operation="execute", recipe_path="@team-pulse:recipes/confirm-alignment.yaml", context={"member_name": "Ken"})
+```
+
+**With a specific week:**
+```
+recipes(operation="execute", recipe_path="@team-pulse:recipes/confirm-alignment.yaml", context={"member_name": "Ken", "week": "2026-W12"})
+```
+
+**When the user says:** "confirm alignment for Ken", "link Ken's activity to outcomes",
+"review Ken's week", "what did Ken work on this week", "align Ken's work"
