@@ -1,9 +1,10 @@
 name: prep-audit
 description: >
-  Outcome-first weekly audit. Scans repos for activity, matches against
-  commitments and outcomes, generates per-person audits, team views, and
-  manager rollups. Tracks alignment (% commitments tied to outcomes).
-version: "0.2.0"
+  Outcome-first weekly audit. Scans repos for activity, reads summary.md
+  clusters when available, matches against commitments and outcomes, and
+  generates three views: per-person IC review, flat manager audit, and
+  leadership narrative.
+version: "0.3.0"
 tags: ["audit", "weekly", "automation", "outcomes"]
 
 # Usage:
@@ -50,19 +51,35 @@ steps:
          - `people/<name>/profile.yaml` — GitHub handles, repos, auto_discover
          - `people/<name>/outcomes.md` — quarterly outcomes (IDs and descriptions)
          - `people/<name>/weeks/<WEEK_ID>/commitments.md` — this week's commitments
-         - `people/<name>/activity/*.md` — daily activity files for this week
-           (list files in the activity directory, read those whose dates fall
-           within Monday-Sunday of the target week)
 
          If any file doesn't exist, note it and continue.
 
-      ## Step 3: Scan Repos for Activity (if no daily activity files exist)
+      ## Step 3: Load Activity Data (summary.md preferred, raw files as fallback)
 
-      If daily activity files exist for a member (from the `pull-activity` recipe),
-      use that data — do NOT re-scan repos.
+      For each member, check whether `people/<name>/weeks/<WEEK_ID>/summary.md`
+      exists.
 
-      If no activity files exist for a member, fall back to scanning their repos
-      directly (same logic as the pull-activity recipe):
+      **If summary.md exists:**
+      - Read it. It contains activity clusters grouped by `owner/repo`, each with
+        a `drives:` tag indicating which outcome the cluster contributes to.
+      - Use the activity clusters and `drives:` tags from the summary as the
+        **primary data source** for this member. Do NOT re-read raw activity files
+        or re-scan repos — the summary already consolidates that work.
+
+      **If summary.md does not exist (graceful fallback):**
+      - Fall back to reading raw `people/<name>/activity/<DATE>.md` files:
+        list files in the activity directory and read those whose dates fall
+        within Monday–Sunday of the target week.
+      - If no activity files exist either, fall back to scanning repos directly
+        (see Step 4).
+
+      This fallback is graceful — the recipe works whether 0, some, or all
+      members have summaries.
+
+      ## Step 4: Scan Repos for Activity (only if no activity data from Step 3)
+
+      If a member has neither a summary.md nor daily activity files, scan their
+      repos directly:
 
       For each member with GitHub handles and repos configured, try all handles:
 
@@ -88,7 +105,7 @@ steps:
       gh api "users/<handle>/events?per_page=100" --jq '[.[] | select(.created_at >= "<MONDAY>T00:00:00Z") | .repo.name] | unique | .[]'
       ```
 
-      ## Step 4: Match Activity Against Commitments
+      ## Step 5: Match Activity Against Commitments
 
       For each member's commitments:
 
@@ -101,9 +118,9 @@ steps:
       Be generous with matching. Use PR titles, branch names, and commit messages.
 
       For members who didn't log commitments: note "no commitments logged" but
-      still report any repo activity under "Unmatched Activity".
+      still report any repo activity under "Unlinked Activity".
 
-      ## Step 5: Calculate Metrics
+      ## Step 6: Calculate Metrics
 
       For each member, calculate:
       - **Must-ship total** and **shipped count**
@@ -113,7 +130,7 @@ steps:
       - Total outcomes, on-track count, at-risk count
       - Team alignment % (average of member alignment)
 
-      ## Step 6: Write Per-Person Audit Files
+      ## Step 7: Write Per-Person Audit Files
 
       For each member, write to:
       `people/<name>/weeks/<WEEK_ID>/audit.md`
@@ -150,28 +167,59 @@ steps:
 
       Omit any section with no data.
 
-      ## Step 7: Write Team Audit View
+      ## Step 8: Write IC Review Files
 
-      For each team in `org.yaml`, write to:
-      `views/teams/<team>/<WEEK_ID>-audit.md`
+      For each member with activity this week, write to:
+      `people/<name>/weeks/<WEEK_ID>/review.md`
 
-      Group by OUTCOME, not by person:
+      The IC review is personal — it shows only that person's activity but
+      includes cross-team awareness of who else is driving the same outcomes.
 
       ```
-      # <Team> Team -- Audit for Week of <MONDAY_DATE>
+      # <Name> — Week Review for <WEEK_ID>
 
-      ## Outcome: <outcome-id>
-      Owner(s): <who has commitments driving this>
-      Status: <On track / At risk / Stalled>
+      ## Your Activity
+      ### <owner/repo> (<N> commits)
+      <One-line summary>
+      Drives: <outcome-id or "unlinked">
+
+      ## Outcomes You Contributed To
+      ### <outcome-id>: <outcome description snippet>
+      Your contributions: <summary of your clusters driving this outcome>
+      Teammates also driving this: <names of others with clusters driving same outcome>
+
+      ## Unlinked Activity
+      <clusters with empty drives: fields — activity not connected to any outcome>
+      ```
+
+      Omit "Teammates also driving this:" if no teammates share the outcome.
+      Omit "Unlinked Activity" section if all clusters have a drives: value set.
+
+      ## Step 9: Write Manager Audit View
+
+      Write the consolidated manager audit to a flat path:
+      `views/audit-<WEEK_ID>.md`
+
+      This replaces the old per-team and per-manager nested files. Group by
+      outcome (outcome-first), not by person:
+
+      ```
+      # Team Audit — Week of <MONDAY_DATE>
+
+      ## Outcome Progress
+
+      ### <outcome-id>: <outcome description snippet>
+      Status: <On track / At risk / Stalled / No contributors>
+      Contributors: <names>
       This week:
-      - <person>: <commitment> — <Shipped/Partial>
-      - <person>: <commitment> — <No activity>
+      - <person>: <commitment> — <Shipped/Partial/No activity>
 
-      ## Outcome: <next outcome>
+      ### <next outcome>
       ...
 
-      ## Unconnected Work
-      - <person>: <commitment> — drives: none
+      ## Unlinked Activity
+      Activity not connected to any defined outcome:
+      - <Name>: <repo> — <summary> (<N> commits)
 
       ## Team Scorecard
       | Member | Must-Ship | Shipped | Rate | Alignment |
@@ -179,35 +227,38 @@ steps:
       | <name> | <N>       | <N>     | <N>% | <N>%      |
       ```
 
-      ## Step 8: Write Manager Rollup
+      ## Step 10: Write Leadership View
 
-      For each manager in `org.yaml`, write to:
-      `views/managers/<lowercase_manager_first_name>/<WEEK_ID>-rollup.md`
+      Write the leadership narrative to:
+      `views/leadership-<WEEK_ID>.md`
+
+      This view is designed for Sam — a VP who needs to understand the state
+      in 30 seconds. Narrative paragraphs, not tables.
 
       ```
-      # <Manager>'s Team -- Week of <MONDAY_DATE>
+      # Leadership View — Week of <MONDAY_DATE>
 
-      ## Outcomes Summary
-      | Outcome | Owner | Status | Weeks Active |
-      |---------|-------|--------|-------------|
-      | <outcome> | <person> | <status> | <N> |
+      ## Outcome Progress
 
-      ## Needs Attention
-      - <outcome>: <why it needs attention>
+      ### <outcome-id>: <outcome description snippet>
+      Status: <On track / At risk / Stalled / No contributors>
+      Contributors: <names>
+      This week: <narrative paragraph summarizing what was done toward this outcome>
 
-      ## Member Scorecard
-      | Member | Must-Ship | Shipped | Rate | Alignment |
-      |--------|-----------|---------|------|-----------|
-      | <name> | <N>       | <N>     | <N>% | <N>%      |
+      ### <next outcome>
+      ...
 
-      ## Unconnected Work
-      - <person>: <commitment with drives: none>
+      ## Unlinked Activity
+      Activity not connected to any defined outcome:
+      - <Name>: <repo> — <summary> (<N> commits)
+
+      ## Team Health
+      - Members with activity: <N>/<total>
+      - Outcomes with active contributors: <N>/<total>
+      - Alignment rate: <clusters with drives: set / total clusters> %
       ```
 
-      For "Weeks Active", count how many consecutive weeks this outcome has had
-      at least one commitment — look back through previous week folders.
-
-      ## Step 9: Update CHANGELOG.md
+      ## Step 11: Update CHANGELOG.md
 
       Calculate the scorecard and append a new row to `CHANGELOG.md`:
 
@@ -222,10 +273,10 @@ steps:
       |------|-----------|---------|------|-----------------|-----------|
       ```
 
-      ## Step 10: Commit and Push
+      ## Step 12: Commit and Push
 
       ```
-      git add people/*/weeks/*/audit.md views/ CHANGELOG.md
+      git add people/*/weeks/*/audit.md people/*/weeks/*/review.md views/audit-*.md views/leadership-*.md CHANGELOG.md
       git commit -m "audit: generate week <WEEK_ID>"
       git push
       ```
