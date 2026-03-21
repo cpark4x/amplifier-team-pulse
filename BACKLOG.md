@@ -2,16 +2,17 @@
 
 **Purpose:** Outcome-driven weekly accountability for multi-team orgs — outcomes, commitments, activity pull, audit, showcase.
 **Owner:** Chris Park
-**Last Updated:** 2026-03-18
+**Last Updated:** 2026-03-20
 
 ---
 
 ## Current Status Summary
 
-**3 epics tracked:** 2 complete, 1 planned
+**4 epics tracked:** 3 complete, 1 planned
 
 - V1 core loop (commitments, audit, showcase) — shipped
 - V2 outcome-driven multi-team (migration, daily pull, outcomes, narrative showcase) — shipped
+- V2 Phase 2: weekly alignment (confirm-alignment recipe, three audit views, outcome linking) — shipped
 - V2 polish + V3 website — planned
 
 ### Active Work
@@ -35,6 +36,9 @@
 | Auto-discover flag | Chris | 2026-03-18 | Per-member opt-in for untracked repo discovery |
 | Auto-populate repos from commitments | Chris | 2026-03-18 | New repos auto-added to profile.yaml |
 | Doc-driven-dev setup | Chris | 2026-03-18 | Lean tier docs structure scaffolded |
+| Phase 2: Weekly alignment confirmation | Chris | 2026-03-20 | confirm-alignment recipe v0.1.0, clusters activity by repo |
+| Phase 2: Summary-driven audit pipeline | Chris | 2026-03-20 | prep-audit v0.3.0 reads summary.md, generates manager/IC/leader views |
+| Phase 2: Team pulse instructions integration | Chris | 2026-03-20 | Routing triggers confirm-alignment before audit |
 
 ---
 
@@ -44,9 +48,12 @@
 
 | # | Item | Effort | Impact | Why Now |
 |---|------|--------|--------|---------|
-| 1 | CLI identity filtering (V2) | M | H | Different views per person based on git config → org.yaml lookup |
-| 2 | Define real outcomes for all 7 ICs | S | H | Placeholder outcomes need to be replaced with real Q1 goals |
-| 3 | Collect GitHub handles for Salil, Samuel, Alex | S | H | Activity pull can't run for them until configured |
+| 1 | IC reviews self-service gating | S | M | IC reviews only generated for members with summary.md; others need to run confirm-alignment first (deferred) |
+| 2 | Draft-showcase + leader view integration | M | M | Leadership narrative + showcase cross-linking (deferred) |
+| 3 | Batch confirmation mode (team-wide) | M | M | Run confirm-alignment for entire team at once instead of per-member (deferred) |
+| 4 | CLI identity filtering (V2) | M | H | Different views per person based on git config → org.yaml lookup |
+| 5 | Define real outcomes for all 7 ICs | S | H | Placeholder outcomes need to be replaced with real Q1 goals |
+| 6 | Collect GitHub handles for Salil, Samuel, Alex | S | H | Activity pull can't run for them until configured |
 
 ### Near-term
 
