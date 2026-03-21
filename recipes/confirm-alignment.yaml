@@ -95,30 +95,22 @@ steps:
       - If it's a placeholder, flag it and note that outcome linking will be skipped
       - Store the list of outcome IDs and their descriptions for use in Step 6
 
-      ## Step 6: Present Clusters to Manager
+      ## Step 6: Present Clusters and Write Summary File
 
-      Show the manager a summary of the week's activity:
+      Show the manager a summary of the week's activity, then immediately write
+      the summary file — do not wait for confirmation before writing.
 
       For each repository cluster, display:
       - Repository name (with `(auto-discovered)` note if applicable)
       - Commit count, merged PR count, open PR count
       - One-line summary of work done
 
-      Then:
-      - If real outcomes exist:
-        - Show the numbered outcome list
-        - Ask: "For each cluster, which outcome does it drive? You can say the
-          number, the outcome ID, or 'unlinked' if it doesn't connect to one."
-        - Accept corrections to the cluster summaries if the manager offers them
-      - If no real outcomes (placeholder):
-        - Just ask: "Does this summary look accurate? Any corrections?"
+      If real outcomes exist, make a best-effort assignment of each cluster to an
+      outcome based on the commit messages, PR titles, and outcome descriptions.
+      If a cluster doesn't clearly match any outcome, leave `drives:` empty.
 
-      Keep this quick — target 30 seconds of manager time.
-      Accept the manager's linking decisions without pushing back.
-
-      ## Step 7: Write Summary File
-
-      Create the directory and write the summary file:
+      Immediately after presenting the clusters, create the directory and write
+      the summary file:
 
       ```
       mkdir -p people/<name>/weeks/<WEEK_ID>
@@ -141,14 +133,19 @@ steps:
       ```
 
       Rules:
-      - Every cluster MUST have a `drives:` line — if the manager said "unlinked"
-        or no outcome was given, write `drives:` with an empty value
+      - Every cluster MUST have a `drives:` line — write `drives:` with an empty
+        value if no outcome was matched
       - Auto-discovered repos use the format `### <owner/repo> (auto-discovered, <N> commits)`
       - `<Name>` is the display name (e.g., "Ken", "Manoj"), not the directory name
       - `<MONDAY_DATE>` is the Monday of the target week (YYYY-MM-DD)
       - `<outcome-id>` is the kebab-case outcome ID from outcomes.md, or empty if unlinked
 
-      ## Step 8: Commit and Push
+      After writing the file, tell the manager:
+      "I've written the summary to `people/<name>/weeks/<WEEK_ID>/summary.md`.
+      The `drives:` fields reflect my best-effort outcome linking — edit them
+      directly in the file if you'd like to adjust any assignments."
+
+      ## Step 7: Commit and Push
 
       ```
       git add people/<name>/weeks/<WEEK_ID>/summary.md
